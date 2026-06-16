@@ -4,26 +4,24 @@ from __future__ import annotations
 
 import httpx
 
-from ..models import Report
 from .base import Notifier
-from .render import render_markdown
+from .message import Message
 
 
 class ServerChanNotifier(Notifier):
     name = "serverchan"
 
-    def _send(self, report: Report) -> None:
+    def _send(self, msg: Message) -> None:
         sendkey = self.settings.env("SERVERCHAN_SENDKEY")
         if not sendkey:
             raise RuntimeError("缺少 SERVERCHAN_SENDKEY")
 
         # Server酱 Turbo 的端点由 SendKey 拼出
         url = f"https://sctapi.ftqq.com/{sendkey}.send"
-        content = render_markdown(report, self.settings.report.show_stats)
 
         resp = httpx.post(
             url,
-            data={"title": report.title, "desp": content},
+            data={"title": msg.title, "desp": msg.markdown},
             timeout=30,
         )
         resp.raise_for_status()

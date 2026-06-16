@@ -10,6 +10,7 @@ import logging
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 from .config import Settings
 from . import pipeline
@@ -24,16 +25,28 @@ def run_forever(settings: Settings) -> None:
     @sched.scheduled_job(
         CronTrigger(hour=hour, minute=minute, timezone=settings.schedule.timezone)
     )
-    def _job() -> None:
-        log.info("定时触发，开始执行管道")
+    def _daily() -> None:
+        log.info("每日触发，执行简报管道")
         try:
             pipeline.run(settings)
         except Exception as exc:  # 守护循环不能被单次失败打断
-            log.exception("本次管道执行异常：%s", exc)
+            log.exception("每日管道异常：%s", exc)
+
+    # 盘中速报：每 N 分钟跑一次，run_movers 内部自带交易时段门控
+    if settings.market.enabled:
+        @sched.scheduled_job(
+            IntervalTrigger(minutes=settings.schedule.intraday_every_minutes)
+        )
+        def _intraday() -> None:
+            try:
+                pipeline.run_movers(settings)
+            except Exception as exc:
+                log.exception("盘中速报异常：%s", exc)
 
     log.info(
-        "调度器已启动：每天 %s (%s) 运行；Ctrl+C 退出",
+        "调度器已启动：每天 %s 简报 + 每 %d 分钟盘中速报(%s)；Ctrl+C 退出",
         settings.schedule.daily_at,
+        settings.schedule.intraday_every_minutes,
         settings.schedule.timezone,
     )
     try:

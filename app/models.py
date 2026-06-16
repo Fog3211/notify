@@ -43,6 +43,44 @@ class NewsItem(BaseModel):
         return (now - pub).total_seconds() / 3600.0
 
 
+class Quote(BaseModel):
+    """一条美股行情快照。不同行情源（Yahoo / Stooq）都收敛到这里。"""
+
+    symbol: str
+    price: float                     # 最新价（免费源约 15 分钟延迟）
+    prev_close: float | None = None  # 前收盘价，用于算日内涨跌幅
+    volume: int | None = None
+    avg_volume: int | None = None    # 历史均量，用于量能异常判断（可能为空）
+    source: str = "yahoo"
+
+    @property
+    def change_pct(self) -> float | None:
+        """日内涨跌幅(%)。prev_close 缺失或为 0 时返回 None。"""
+        if not self.prev_close:
+            return None
+        return (self.price - self.prev_close) / self.prev_close * 100.0
+
+
+class MoverAlert(BaseModel):
+    """一条异动告警。由规则检测产出，可叠加 AI 归因。"""
+
+    symbol: str
+    window: str                      # daily | hourly | volume —— 触发口径
+    change_pct: float                # 触发时的涨跌幅(%)（量能异动时为日内涨跌幅）
+    price: float
+    reason: str = ""                 # 一句话说明（规则文案，或 AI 归因）
+
+    @property
+    def direction(self) -> str:
+        """up / down —— 与冷却去重的「同方向」判断一致。"""
+        return "up" if self.change_pct >= 0 else "down"
+
+    @property
+    def cooldown_key(self) -> str:
+        """冷却去重键：同标的同方向同口径在冷却期内只推一次。"""
+        return f"{self.symbol}:{self.window}:{self.direction}"
+
+
 class TopicAnalysis(BaseModel):
     """AI 对单个主题的分析结论。"""
 

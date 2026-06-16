@@ -17,9 +17,10 @@
 - CPO / 光模块（共封装光学）
 - 半导体
 - 宏观财经大事件
-- A 股（🚧 可选扩展）
 
-**不在范围**：自动交易 / 下单、投资建议、高频或秒级行情。
+**只做美股**（科技 / 存储 / CPO / AI / 半导体）。
+
+**不在范围**：A 股 / 港股、自动交易 / 下单、投资建议、高频或秒级行情。
 
 ---
 
@@ -27,8 +28,8 @@
 
 | 模式 | 触发 | 动作 | 状态 |
 |---|---|---|---|
-| 每日简报 | 每天定时（开盘前 / 收盘后） | 汇总当日新闻+行情 → AI 结构化分析 → 推送简报 | ✅ |
-| 盘中速报 | 美股交易时段每小时 | 拉行情+大事件 → 检测异动 → 命中则 AI 速评 → 推送速报 | 🚧 |
+| 每日简报 | 每天定时（开盘前 / 收盘后） | 汇总当日新闻 → AI 结构化分析 → 推送简报 | ✅ |
+| 盘中速报 | 美股交易时段每小时 | 拉行情 → 检测暴涨暴跌 → 推送速报（纯规则，可选叠加 AI 归因） | ✅ |
 
 约束：盘中速报仅在美股交易时段运行；任一模式跑一遍均**幂等**，靠去重不重复推送。
 
@@ -41,19 +42,19 @@
 - 每条新闻标准化为统一结构（见 §6 `NewsItem`）。
 - 来源类型：RSS 直订 ✅；RSSHub 中转 🚧；Finnhub / NewsAPI / TianAPI 等 API 🚧。
 
-### FR-2 行情采集 🚧
-- 拉取关注标的的最新价、前收价、成交量等（见 §6 `Quote`）。
-- 主源 yfinance（美股免 key）；可选 Finnhub / Alpha Vantage；A 股可选 AKShare / Baostock。
-- 每次拉取写入行情快照，作为异动对比基线。
+### FR-2 行情采集 ✅
+- 拉取关注标的的最新价、前收价、成交量、10 日均量等（见 §6 `Quote`）。
+- 主源 CNBC 报价接口（免 key，含均量）；单标的失败退回 Nasdaq 接口（免 key）。
+- 每次拉取写入行情快照，作为小时级异动对比基线。
 
 ### FR-3 处理与去重 ✅
 - 新闻按回溯窗口 `lookback_hours` 过滤旧闻；无发布时间的条目保留。
 - 跨运行去重：以 URL（缺失退回标题）的指纹持久化已推送内容，避免重复推送。
 - 去重指纹按保留天数自动清理。
 
-### FR-4 异动检测 🚧
-- 按 §7 口径计算涨跌幅与量能异常，产出异动告警（见 §6 `MoverAlert`）。
-- 冷却期内同标的同方向不重复告警。
+### FR-4 异动检测 ✅
+- 按 §7 口径计算涨跌幅与量能异常，产出异动告警（见 §6 `MoverAlert`）。纯规则，无需 LLM。
+- 冷却期内同标的同方向同口径不重复告警。
 
 ### FR-5 AI 分析 ✅（每日）/ 🚧（速评）
 - 一次调用覆盖全部主题，产出结构化结论 + 跨主题综述（见 §6 `Report`）。
@@ -67,10 +68,10 @@
 - 可选渠道：企业微信机器人 / Bark / ntfy / Telegram Bot 🚧。
 - 多渠道相互独立，单渠道失败不影响其他；全部失败则不标记已读，留待重试。
 
-### FR-7 调度 ✅（单频率）/ 🚧（多频率）
-- daemon 模式内置定时器，按配置每日运行 ✅。
-- 扩展为盘中每小时 + 每日定时两类任务 🚧。
+### FR-7 调度 ✅
+- daemon 模式内置定时器：每日简报 + 盘中每小时速报（交易时段门控）。
 - 触发器无关：同一「跑一次」命令可由 Docker / cron / launchd / n8n / GitHub Actions 驱动。
+- 推荐 GitHub Actions：自带每日与盘中两个 cron 工作流，零服务器、$0。
 
 ### FR-8 配置与密钥 ✅
 - 业务配置（数据源、标的、阈值、渠道开关、调度）入库于配置文件。
@@ -86,9 +87,9 @@
 | 新闻 | 财经媒体 RSS（CNBC / Yahoo / MIT TR / VentureBeat / Tom's HW / SemiEngineering 等） | 否 | ✅ |
 | 新闻 | RSSHub 中转（雪球 / 新浪财经 / 华尔街见闻 / SEC 等） | 否（自建） | 🚧 |
 | 新闻 | Finnhub / NewsAPI / TianAPI | 是 | 🚧（Finnhub 框架已留） |
-| 行情 | yfinance（美股） | 否 | 🚧 |
-| 行情 | Finnhub / Alpha Vantage（美股） | 是 | 🚧 |
-| 行情 | AKShare / Baostock（A 股） | 否 | 🚧 |
+| 行情 | Yahoo chart 接口（美股，主） | 否 | ✅ |
+| 行情 | Stooq CSV（美股，兜底） | 否 | ✅ |
+| 行情 | Finnhub / Alpha Vantage（美股，可选增强） | 是 | 🚧 |
 
 ---
 
@@ -113,13 +114,13 @@
 `source` 来源名 · `topic` 主题（ai/us_tech/finance/semiconductor…）· `title` · `url`
 · `summary` 摘要 · `published_at` 发布时间 · `fingerprint` 去重指纹（派生）
 
-**Quote** 🚧 — 一条行情快照
-`symbol` · `price` 最新价 · `prev_close` 前收 · `change_pct` 日内涨跌幅 · `volume`
-· `avg_volume` 历史均量 · `ts` 时间戳 · `source`
+**Quote** ✅ — 一条行情快照
+`symbol` · `price` 最新价 · `prev_close` 前收 · `change_pct` 日内涨跌幅（派生）·
+`volume` · `avg_volume` 10 日均量 · `source`
 
-**MoverAlert** 🚧 — 一条异动告警
-`symbol` · `change_pct` · `window`（intraday/hourly/volume）· `price` · `reason` AI 归因
-· `related_news` 关联新闻列表
+**MoverAlert** ✅ — 一条异动告警
+`symbol` · `window`（daily/hourly/volume）· `change_pct` · `price` · `reason` 规则文案（可叠加 AI 归因）
+· `direction`/`cooldown_key`（派生，用于冷却去重）
 
 **TopicAnalysis** ✅ — 单主题 AI 结论
 `topic` · `headline` 一句话结论 · `bullets` 要点列表 · `sentiment`（bullish/bearish/neutral/mixed）
@@ -130,7 +131,7 @@
 
 ---
 
-## 7. 异动判定口径 🚧
+## 7. 异动判定口径 ✅
 
 - 日内涨跌幅 = (price − prev_close) / prev_close；`|日内涨跌幅| ≥ daily_threshold`（默认 5%）触发。
 - 小时涨跌幅 = (price − 上一快照 price) / 上一快照 price；`|小时涨跌幅| ≥ hourly_threshold`（默认 3%）触发。
@@ -163,9 +164,9 @@ token / webhook / secret。详见 `.env.example`。
 | AC-5 | 重复运行不重复推送同一条内容 | ✅ |
 | AC-6 | 单个数据源失败不影响整体运行 | ✅ |
 | AC-7 | 切换 LLM provider 仅改配置即可生效 | ✅ |
-| AC-8 | 行情拉取产出 `Quote` 并写入快照基线 | 🚧 |
-| AC-9 | 阈值触发时产出 `MoverAlert` 并推送速报，冷却期内不重复 | 🚧 |
-| AC-10 | 盘中任务仅在交易时段运行 | 🚧 |
+| AC-8 | 行情拉取产出 `Quote` 并写入快照基线 | ✅ |
+| AC-9 | 阈值触发时产出 `MoverAlert` 并推送速报，冷却期内不重复 | ✅ |
+| AC-10 | 盘中任务仅在交易时段运行（`--force` 可绕过） | ✅ |
 
 ---
 

@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import httpx
 
-from ..models import Report
 from .base import Notifier
-from .render import render_markdown
+from .message import Message
 
 _API = "http://www.pushplus.plus/send"
 
@@ -14,20 +13,19 @@ _API = "http://www.pushplus.plus/send"
 class PushPlusNotifier(Notifier):
     name = "pushplus"
 
-    def _send(self, report: Report) -> None:
+    def _send(self, msg: Message) -> None:
         token = self.settings.env("PUSHPLUS_TOKEN")
         if not token:
             raise RuntimeError("缺少 PUSHPLUS_TOKEN")
 
         template = self.settings.notifiers.pushplus.template or "markdown"
-        content = render_markdown(report, self.settings.report.show_stats)
 
         resp = httpx.post(
             _API,
             json={
                 "token": token,
-                "title": report.title,
-                "content": content,
+                "title": msg.title,
+                "content": msg.markdown,
                 "template": template,
             },
             timeout=30,

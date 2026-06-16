@@ -15,9 +15,13 @@ from .config import Settings
 from .dedup import SeenStore
 from .http import make_client
 from .llm.factory import build_llm
-from .models import NewsItem, Report
+from .market.hours import is_us_market_open
+from .market.movers import detect
+from .market.provider import fetch_quotes
+from .market.snapshot import SnapshotStore
+from .models import MoverAlert, NewsItem, Report
 from .notifiers.registry import build_notifiers
-from .notifiers.render import render_markdown
+from .notifiers.render import build_daily_message, build_movers_message
 
 log = logging.getLogger("pipeline")
 
@@ -87,13 +91,13 @@ def run(settings: Settings, *, dry_run: bool = False) -> Report | None:
             log.warning("分析无产出，跳过推送（本批不标记已读，下次重试）")
             return None
 
+        msg = build_daily_message(report, settings.report.show_stats)
         if dry_run:
-            log.info("[dry-run] 报告如下，不推送、不写去重库：\n%s",
-                     render_markdown(report, settings.report.show_stats))
+            log.info("[dry-run] 报告如下，不推送、不写去重库：\n%s", msg.markdown)
             return report
 
         notifiers = build_notifiers(settings)
-        results = [n.send(report) for n in notifiers]
+        results = [n.send(msg) for n in notifiers]
 
         # 只要有渠道推送成功（或本就没配渠道）就标记已读，避免重复推送；
         # 全部渠道失败则不标记，留待下次重试。
@@ -102,5 +106,55 @@ def run(settings: Settings, *, dry_run: bool = False) -> Report | None:
         else:
             log.warning("所有渠道推送失败，本批不标记已读")
         return report
+    finally:
+        store.close()
+
+
+def run_movers(
+    settings: Settings, *, dry_run: bool = False, force: bool = False
+) -> list[MoverAlert]:
+    """盘中速报：拉行情 -> 检测异动 -> 冷却过滤 -> 推送。返回本次推送的告警。
+
+    dry_run=True 时不推送、不写快照/冷却（可重复测试）；force=True 时绕过交易时段门控。
+    """
+    if not settings.market.enabled:
+        log.info("行情/异动监控未启用 (market.enabled=false)")
+        return []
+    if not force and not is_us_market_open():
+        log.info("当前非美股交易时段，跳过盘中速报（--force 可强制）")
+        return []
+
+    store = SnapshotStore(settings.snapshot_db_path())
+    try:
+        last_prices = store.last_prices()
+        with make_client() as client:
+            quotes = fetch_quotes(settings, settings.all_tickers(), client)
+        if not quotes:
+            log.warning("未取到任何行情，跳过")
+            return []
+
+        alerts = detect(quotes, last_prices, settings.market.movers)
+        if not dry_run:
+            store.save_prices(quotes)   # 更新快照，供下次小时级对比
+
+        # 冷却过滤：同标的同方向同口径在冷却期内不重复推送
+        cooldown_h = settings.market.movers.cooldown_hours
+        fresh = [a for a in alerts if not store.in_cooldown(a.cooldown_key, cooldown_h)]
+        log.info("检测到 %d 条异动，冷却过滤后 %d 条待推送", len(alerts), len(fresh))
+        if not fresh:
+            return []
+
+        msg = build_movers_message(fresh)
+        if dry_run:
+            log.info("[dry-run] 异动速报如下，不推送、不写状态：\n%s", msg.markdown)
+            return fresh
+
+        notifiers = build_notifiers(settings)
+        results = [n.send(msg) for n in notifiers]
+        if not notifiers or any(results):
+            store.mark_alerted([a.cooldown_key for a in fresh])
+        else:
+            log.warning("所有渠道推送失败，本批不标记冷却")
+        return fresh
     finally:
         store.close()

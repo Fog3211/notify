@@ -1,0 +1,32 @@
+# 盘中异动速报：美股交易时段每小时跑一次（拉行情→检测暴涨暴跌→推送）。
+# cron 给一个宽松窗口，精确的交易时段判断由代码内 is_us_market_open() 负责（含夏令时）。
+name: intraday-movers
+
+on:
+  schedule:
+    - cron: "0 13-21 * * 1-5"   # 每小时一次，13–21 UTC 覆盖美股 EST/EDT 交易时段，工作日
+  workflow_dispatch: {}
+
+# 异动速报纯规则即可推送，不强依赖 LLM；推送密钥按需配置
+env:
+  FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+  FEISHU_WEBHOOK_SECRET: ${{ secrets.FEISHU_WEBHOOK_SECRET }}
+  PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+  SERVERCHAN_SENDKEY: ${{ secrets.SERVERCHAN_SENDKEY }}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      # 持久化行情快照 + 冷却记录：小时级对比与去重需要跨运行状态
+      - uses: actions/cache@v4
+        with:
+          path: data
+          key: notify-state-${{ github.run_id }}
+          restore-keys: notify-state-
+      - run: python -m app movers

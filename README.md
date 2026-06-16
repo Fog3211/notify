@@ -47,12 +47,18 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env          # 填入你启用的 LLM key 与推送渠道 key
 
-python -m app check           # 自检：数据源 / LLM / 推送渠道是否就绪
-python -m app collect         # 只采集、打印各源条数（排查数据源）
-python -m app run --dry-run   # 跑一遍但不推送、不写去重库，打印报告
-python -m app run             # 正式跑一次：采集→分析→推送
-python -m app schedule        # 常驻，按 config 每天定时运行
+python -m app check                 # 自检：数据源 / LLM / 行情 / 推送渠道是否就绪
+python -m app collect               # 只采集新闻、打印各源条数（排查数据源）
+python -m app quotes                # 只拉美股行情、打印（排查行情源）
+python -m app run --dry-run         # 每日简报跑一遍但不推送、不写去重库
+python -m app run                   # 每日简报正式跑：采集→AI 分析→推送
+python -m app movers --dry-run --force  # 盘中异动检测预览（不推送、绕过交易时段门控）
+python -m app movers                # 盘中异动速报：拉行情→检测→推送（仅交易时段）
+python -m app schedule              # 常驻：每日简报 + 盘中每小时速报
 ```
+
+> **异动速报无需 LLM**：暴涨暴跌检测是纯规则的，没有任何 API key 也能跑通推送；
+> 配置了 LLM 只是给每日简报做分析。行情源（CNBC/Nasdaq）免 key。
 
 ## 配置
 
@@ -80,6 +86,19 @@ llm:
 并在 `.env` 填对应 key（此例为 `DEEPSEEK_API_KEY`）。
 
 ## 部署
+
+### GitHub Actions（最省事的免费白嫖，推荐）
+
+仓库自带两个工作流，零服务器、$0：
+
+- [.github/workflows/daily.yml](.github/workflows/daily.yml) — 每日简报（北京时间 07:00 前后）
+- [.github/workflows/intraday.yml](.github/workflows/intraday.yml) — 盘中每小时异动速报（交易时段由代码门控）
+
+用法：fork / push 到 GitHub → 仓库 **Settings → Secrets and variables → Actions** 里填密钥
+（`FEISHU_WEBHOOK_URL`、`PUSHPLUS_TOKEN`、`ANTHROPIC_API_KEY` 等，按需）→ 工作流自动按 cron 跑。
+去重库/行情快照用 `actions/cache` 跨运行保留（长期可靠去重建议换 Turso / Cloudflare D1）。
+
+LLM 也能白嫖：每日简报可用 Gemini / Groq 免费档或 DeepSeek 低价；异动速报纯规则，无需 LLM。
 
 ### Docker（推荐）
 ```bash

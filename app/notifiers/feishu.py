@@ -9,9 +9,8 @@ import time
 
 import httpx
 
-from ..models import Report
 from .base import Notifier
-from .render import render_feishu_card
+from .message import Message
 
 
 def _gen_sign(secret: str, timestamp: int) -> str:
@@ -24,15 +23,12 @@ def _gen_sign(secret: str, timestamp: int) -> str:
 class FeishuNotifier(Notifier):
     name = "feishu"
 
-    def _send(self, report: Report) -> None:
+    def _send(self, msg: Message) -> None:
         url = self.settings.env("FEISHU_WEBHOOK_URL")
         if not url:
             raise RuntimeError("缺少 FEISHU_WEBHOOK_URL")
 
-        payload: dict = {
-            "msg_type": "interactive",
-            "card": render_feishu_card(report, self.settings.report.show_stats),
-        }
+        payload: dict = {"msg_type": "interactive", "card": msg.feishu_card}
 
         # 开启签名校验的机器人需带 timestamp + sign
         secret = self.settings.env("FEISHU_WEBHOOK_SECRET")

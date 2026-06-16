@@ -6,7 +6,7 @@ import logging
 from abc import ABC, abstractmethod
 
 from ..config import Settings
-from ..models import Report
+from .message import Message
 
 log = logging.getLogger("notifier")
 
@@ -18,12 +18,12 @@ class Notifier(ABC):
         self.settings = settings
 
     @abstractmethod
-    def _send(self, report: Report) -> None:
+    def _send(self, msg: Message) -> None:
         """实际发送，失败抛异常，由 send() 兜底。"""
 
-    def send(self, report: Report) -> bool:
+    def send(self, msg: Message) -> bool:
         try:
-            self._send(report)
+            self._send(msg)
             log.info("渠道 [%s] 推送成功", self.name)
             return True
         except Exception as exc:

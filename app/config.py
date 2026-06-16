@@ -19,6 +19,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 class ScheduleCfg(BaseModel):
     timezone: str = "Asia/Shanghai"
     daily_at: str = "07:00"
+    intraday_every_minutes: int = 60
 
 
 class LLMCfg(BaseModel):
@@ -43,6 +44,20 @@ class ProcessingCfg(BaseModel):
     dedup_retention_days: int = 14
 
 
+class MoversCfg(BaseModel):
+    daily_threshold_pct: float = 5.0
+    hourly_threshold_pct: float = 3.0
+    volume_multiple: float = 3.0
+    cooldown_hours: int = 4
+
+
+class MarketCfg(BaseModel):
+    enabled: bool = False
+    source: str = "yahoo"            # yahoo（主）| stooq（兜底）
+    snapshot_db: str = "data/market.sqlite"
+    movers: MoversCfg = Field(default_factory=MoversCfg)
+
+
 class NotifierToggle(BaseModel):
     enabled: bool = False
     template: str | None = None
@@ -64,6 +79,7 @@ class Settings(BaseModel):
     llm: LLMCfg = Field(default_factory=LLMCfg)
     sources: list[SourceCfg] = Field(default_factory=list)
     watchlist: dict[str, list[str]] = Field(default_factory=dict)
+    market: MarketCfg = Field(default_factory=MarketCfg)
     processing: ProcessingCfg = Field(default_factory=ProcessingCfg)
     notifiers: NotifiersCfg = Field(default_factory=NotifiersCfg)
     report: ReportCfg = Field(default_factory=ReportCfg)
@@ -75,6 +91,10 @@ class Settings(BaseModel):
 
     def dedup_db_path(self) -> Path:
         p = Path(self.processing.dedup_db)
+        return p if p.is_absolute() else PROJECT_ROOT / p
+
+    def snapshot_db_path(self) -> Path:
+        p = Path(self.market.snapshot_db)
         return p if p.is_absolute() else PROJECT_ROOT / p
 
     def all_tickers(self) -> list[str]:
