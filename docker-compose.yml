@@ -1,0 +1,22 @@
+# 两种运行方式，按需启用其一（默认 daemon 常驻定时）。
+services:
+  # 方式 A：容器常驻，内部 APScheduler 每天定时触发（config.yaml 的 schedule）
+  notify:
+    build: .
+    container_name: notify
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./data:/app/data            # 去重库持久化
+    command: ["python", "-m", "app", "schedule"]
+
+  # 方式 B：跑一次即退出，交给外部触发（宿主 crontab / n8n Schedule 节点 /
+  # `docker compose run --rm notify-once`）。需要时取消注释，并停用上面的 notify。
+  # notify-once:
+  #   build: .
+  #   env_file: .env
+  #   volumes:
+  #     - ./config.yaml:/app/config.yaml:ro
+  #     - ./data:/app/data
+  #   command: ["python", "-m", "app", "run"]

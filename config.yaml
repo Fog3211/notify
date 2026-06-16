@@ -1,0 +1,101 @@
+# ============================================================
+# 业务配置：数据源、关注标的、LLM、推送、调度。
+# 密钥不在这里 —— 全部走 .env（见 .env.example）。
+# ============================================================
+
+# 运行时区与每日触发时间（仅 daemon/schedule 模式使用；cron/n8n 触发时忽略）
+schedule:
+  timezone: "Asia/Shanghai"
+  daily_at: "07:00"
+
+# LLM：provider 可自由切换，模型可随时改。
+# provider 取值: anthropic | openai | deepseek | dashscope
+llm:
+  provider: "anthropic"
+  model: "claude-sonnet-4-6"
+  temperature: 0.3
+  max_tokens: 4096
+  # 各 provider 的默认值（base_url / 默认模型 / 对应 env key）在 app/llm/factory.py 里，
+  # 这里只覆盖当前选用的；切换 provider 只需改上面 provider/model 两行。
+
+# 采集：每个 source 一条；type=rss 无需 key。
+# topic 用于把新闻分组喂给 AI（也用于推送分栏）。
+sources:
+  # ---------- AI ----------
+  - name: "MIT Tech Review"
+    type: rss
+    topic: ai
+    url: "https://www.technologyreview.com/feed/"
+  - name: "VentureBeat AI"
+    type: rss
+    topic: ai
+    url: "https://venturebeat.com/category/ai/feed/"
+  - name: "Hacker News (AI)"
+    type: rss
+    topic: ai
+    url: "https://hnrss.org/newest?q=AI+OR+LLM+OR+GPU&points=50"
+
+  # ---------- 美股科技 / 财经 ----------
+  - name: "CNBC Technology"
+    type: rss
+    topic: us_tech
+    url: "https://www.cnbc.com/id/19854910/device/rss/rss.html"
+  - name: "Yahoo Finance"
+    type: rss
+    topic: finance
+    url: "https://finance.yahoo.com/news/rssindex"
+  - name: "CNBC Finance"
+    type: rss
+    topic: finance
+    url: "https://www.cnbc.com/id/10000664/device/rss/rss.html"
+
+  # ---------- 半导体 / 存储 / CPO（光模块）----------
+  - name: "Tom's Hardware"
+    type: rss
+    topic: semiconductor
+    url: "https://www.tomshardware.com/feeds/all"
+  - name: "Semiconductor Engineering"
+    type: rss
+    topic: semiconductor
+    url: "https://semiengineering.com/feed/"
+
+  # ---------- 股票新闻 API（需 FINNHUB_API_KEY，留空则自动跳过）----------
+  - name: "Finnhub Market News"
+    type: finnhub_news
+    topic: us_tech
+    category: "technology"   # finnhub general/forex/crypto/merger 等
+
+# 关注标的：用于股票 API collector 与给 AI 的上下文（科技/存储/CPO/AI）。
+watchlist:
+  tech:   ["NVDA", "MSFT", "GOOGL", "META", "AMZN", "AAPL", "TSLA", "PLTR", "ARM"]
+  ai:     ["NVDA", "AMD", "SMCI", "AVGO", "TSM"]
+  storage: ["MU", "WDC", "STX", "PSTG", "NTAP"]
+  cpo:    ["AVGO", "MRVL", "COHR", "LITE", "POET"]   # 光模块/共封装光学
+
+# 去重 & 过滤
+processing:
+  # 只看最近 N 小时内发布的新闻（避免每天重复推旧闻）
+  lookback_hours: 30
+  # 每个 topic 最多送多少条进 AI（控 token / 成本）
+  max_items_per_topic: 15
+  # 去重指纹存储
+  dedup_db: "data/seen.sqlite"
+  # 已推送指纹保留天数（超期自动清理）
+  dedup_retention_days: 14
+
+# 推送渠道：enabled 控制开关；缺对应 env 密钥会在启动时报警告并跳过。
+notifiers:
+  feishu:
+    enabled: true
+  pushplus:
+    enabled: true
+    # PushPlus 模板: html | markdown | txt
+    template: "markdown"
+  serverchan:
+    enabled: false
+
+# 报告渲染
+report:
+  title: "📈 每日 AI · 美股 · 财经简报"
+  # 是否在末尾附「数据源/条数」统计
+  show_stats: true

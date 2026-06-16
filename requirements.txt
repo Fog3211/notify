@@ -1,0 +1,12 @@
+# HTTP client (collectors, LLM calls, webhook push)
+httpx>=0.27
+# RSS/Atom parsing
+feedparser>=6.0
+# Config & models validation
+pydantic>=2.7
+PyYAML>=6.0
+python-dotenv>=1.0
+# Scheduling (daemon mode)
+APScheduler>=3.10
+# Retry/backoff for flaky sources & APIs
+tenacity>=8.2
