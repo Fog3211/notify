@@ -53,8 +53,9 @@ class MoversCfg(BaseModel):
 
 class MarketCfg(BaseModel):
     enabled: bool = False
-    source: str = "yahoo"            # yahoo（主）| stooq（兜底）
+    source: str = "cnbc"             # cnbc（主）| nasdaq（兜底）
     snapshot_db: str = "data/market.sqlite"
+    ai_attribution: bool = True      # 异动时关联新闻做 AI 一句话归因（需 LLM key，无则跳过）
     movers: MoversCfg = Field(default_factory=MoversCfg)
 
 

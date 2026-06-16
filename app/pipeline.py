@@ -14,7 +14,9 @@ from .collectors.registry import build_collectors
 from .config import Settings
 from .dedup import SeenStore
 from .http import make_client
+from .llm.base import LLMError
 from .llm.factory import build_llm
+from .market.attribution import apply as apply_attribution, attribute
 from .market.hours import is_us_market_open
 from .market.movers import detect
 from .market.provider import fetch_quotes
@@ -110,6 +112,21 @@ def run(settings: Settings, *, dry_run: bool = False) -> Report | None:
         store.close()
 
 
+def _attribute_movers(settings: Settings, alerts: list[MoverAlert]) -> None:
+    """为异动个股做 AI 归因（原地改写 reason）。LLM 不可用时静默跳过。"""
+    try:
+        llm = build_llm(settings)
+    except LLMError as exc:
+        log.info("未配置可用 LLM，跳过异动归因（%s）", exc)
+        return
+    # 复用每日新闻采集，关联到异动个股；只在确有异动时才付出这次采集成本
+    news = _filter_recent(_collect_all(settings), settings.processing.lookback_hours)
+    reasons = attribute(llm, alerts, news)
+    apply_attribution(alerts, reasons)
+    if reasons:
+        log.info("已为 %d 只异动生成 AI 归因", len(reasons))
+
+
 def run_movers(
     settings: Settings, *, dry_run: bool = False, force: bool = False
 ) -> list[MoverAlert]:
@@ -143,6 +160,10 @@ def run_movers(
         log.info("检测到 %d 条异动，冷却过滤后 %d 条待推送", len(alerts), len(fresh))
         if not fresh:
             return []
+
+        # 可选：关联近期新闻，给每只异动个股一句话 AI 归因（无 LLM key 则自动跳过）
+        if settings.market.ai_attribution:
+            _attribute_movers(settings, fresh)
 
         msg = build_movers_message(fresh)
         if dry_run:

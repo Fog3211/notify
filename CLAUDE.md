@@ -16,11 +16,11 @@
 ## 当前状态
 
 - ✅ 资讯链路：新闻采集（RSS）→ 去重 → 每日 AI 结构化分析 → 推送（飞书 / PushPlus / Server酱）；
-  LLM provider 可切换；离线单测；Docker。
-- ✅ 行情/异动链路：美股行情采集（Yahoo chart + Stooq 兜底，免 key）→ 暴涨暴跌异动检测
-  （阈值 + 冷却去重）→ 异动速报渲染推送（纯规则可跑，配 LLM 叠加 AI 归因）。
+  LLM provider 可切换（含 Groq / Gemini 免费档，OpenAI 兼容端点接入）；离线单测；Docker。
+- ✅ 行情/异动链路：美股行情采集（CNBC + Nasdaq 兜底，免 key）→ 暴涨暴跌异动检测
+  （阈值 + 冷却去重）→ 异动速报渲染推送（纯规则可跑，配 LLM 时叠加关联新闻的一句话 AI 归因）。
 - ✅ 多频率：每日简报 + 盘中每小时速报（交易时段门控）；GitHub Actions 两个 cron 工作流。
-- 🚧 规划中：RSSHub / 新闻 API、Finnhub/AlphaVantage 行情增强、更多推送渠道、LiteLLM。
+- 🚧 规划中：RSSHub / 新闻 API、Finnhub/AlphaVantage 行情增强、更多推送渠道（企业微信 / Bark / ntfy）。
   详见 SPEC 的状态标记与 PLAN 的路线图。**A 股不做。**
 
 ## 架构与数据流

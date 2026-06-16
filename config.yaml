@@ -9,15 +9,15 @@ schedule:
   daily_at: "07:00"            # 每日简报（北京时间），美股收盘后
   intraday_every_minutes: 60  # 盘中速报间隔（分钟），仅美股交易时段运行
 
-# LLM：provider 可自由切换，模型可随时改。
-# provider 取值: anthropic | openai | deepseek | dashscope
+# LLM：provider 可自由切换，模型可随时改（切换只需改 provider/model 两行 + 填对应 key）。
+# provider 取值: groq | gemini | deepseek | anthropic | openai | dashscope
+# 白嫖推荐: groq（免费、快）或 gemini（免费）；要质量好且便宜用 deepseek。
 llm:
-  provider: "anthropic"
-  model: "claude-sonnet-4-6"
+  provider: "groq"
+  model: "llama-3.3-70b-versatile"
   temperature: 0.3
   max_tokens: 4096
-  # 各 provider 的默认值（base_url / 默认模型 / 对应 env key）在 app/llm/factory.py 里，
-  # 这里只覆盖当前选用的；切换 provider 只需改上面 provider/model 两行。
+  # 各 provider 的 base_url / 对应 env key 在 app/llm/factory.py 注册；这里只选 provider/model。
 
 # 采集：每个 source 一条；type=rss 无需 key。
 # topic 用于把新闻分组喂给 AI（也用于推送分栏）。
@@ -79,6 +79,9 @@ market:
   # 行情主源 cnbc（CNBC 报价接口，含 10 日均量）；单标的失败自动切 Nasdaq 兜底。均免 key。
   source: "cnbc"
   snapshot_db: "data/market.sqlite"
+  # 异动 AI 归因：有异动且配了 LLM key 时，关联近期新闻给每只个股一句话「为什么涨/跌」。
+  # 无 key 自动跳过，速报仍正常推送（只是没有归因）。
+  ai_attribution: true
   movers:
     daily_threshold_pct: 5.0    # |日内涨跌幅| ≥ 该值触发异动
     hourly_threshold_pct: 3.0   # |相邻快照涨跌幅| ≥ 该值触发异动

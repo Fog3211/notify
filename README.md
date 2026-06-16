@@ -57,8 +57,9 @@ python -m app movers                # 盘中异动速报：拉行情→检测→
 python -m app schedule              # 常驻：每日简报 + 盘中每小时速报
 ```
 
-> **异动速报无需 LLM**：暴涨暴跌检测是纯规则的，没有任何 API key 也能跑通推送；
-> 配置了 LLM 只是给每日简报做分析。行情源（CNBC/Nasdaq）免 key。
+> **异动速报无需 LLM**：暴涨暴跌检测是纯规则的，没有任何 API key 也能跑通推送。
+> 配置了 LLM（如 Groq/Gemini 免费档）则额外：给每日简报做分析、并给异动个股关联近期
+> 新闻做一句话「为什么涨/跌」AI 归因。行情源（CNBC/Nasdaq）免 key。
 
 ## 配置
 
@@ -76,14 +77,16 @@ python -m app schedule              # 常驻：每日简报 + 盘中每小时速
 - `notifiers`：各渠道 `enabled` 开关。
 - `schedule`：daemon 模式的时区与每日触发时间。
 
-### 切换 LLM
-改 `config.yaml`：
+### 切换 LLM（含免费白嫖档）
+改 `config.yaml` 的 provider/model 两行，并在 `.env` 填对应 key：
 ```yaml
 llm:
-  provider: "deepseek"          # anthropic | openai | deepseek | dashscope
-  model: "deepseek-chat"
+  provider: "groq"          # groq | gemini | deepseek | anthropic | openai | dashscope
+  model: "llama-3.3-70b-versatile"
 ```
-并在 `.env` 填对应 key（此例为 `DEEPSEEK_API_KEY`）。
+- **白嫖推荐**：`groq`（免费、快）或 `gemini`（免费，Flash 系列够用）。
+- 要质量好又便宜：`deepseek`。
+- 这些都通过 OpenAI 兼容端点接入，切换零代码。
 
 ## 部署
 

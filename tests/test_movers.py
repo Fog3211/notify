@@ -3,9 +3,19 @@
 from __future__ import annotations
 
 from app.config import MoversCfg
+from app.llm.base import LLMError
+from app.market.attribution import apply as apply_attr, attribute
 from app.market.movers import detect
 from app.market.snapshot import SnapshotStore
-from app.models import MoverAlert, Quote
+from app.models import MoverAlert, NewsItem, Quote
+
+
+class _FakeLLM:
+    def __init__(self, payload: str) -> None:
+        self.payload = payload
+
+    def chat(self, system: str, user: str) -> str:
+        return self.payload
 
 
 def _cfg(**kw) -> MoversCfg:
@@ -80,3 +90,33 @@ def test_snapshot_store_prices_roundtrip(tmp_path):
     store.save_prices([_q("NVDA", 200.0), _q("MU", 100.0)])
     assert store.last_prices() == {"NVDA": 200.0, "MU": 100.0}
     store.close()
+
+
+# ---------------- 异动 AI 归因 ----------------
+
+
+def _alert(symbol="MU", reason="日内涨 10%") -> MoverAlert:
+    return MoverAlert(symbol=symbol, window="daily", change_pct=10.0, price=100.0, reason=reason)
+
+
+def test_attribute_and_apply():
+    alerts = [_alert()]
+    news = [NewsItem(source="s", topic="semiconductor", title="Micron raises HBM prices", url="http://x/1")]
+    reasons = attribute(_FakeLLM('{"MU": "HBM 涨价带动存储板块"}'), alerts, news)
+    assert reasons["MU"] == "HBM 涨价带动存储板块"
+    apply_attr(alerts, reasons)
+    assert alerts[0].reason.startswith("日内涨 10%") and "HBM" in alerts[0].reason
+
+
+def test_attribute_skips_no_catalyst():
+    alerts = [_alert()]
+    apply_attr(alerts, attribute(_FakeLLM('{"MU": "未见明确催化"}'), alerts, []))
+    assert alerts[0].reason == "日内涨 10%"   # 未见催化不并入
+
+
+def test_attribute_llm_failure_returns_empty():
+    class Boom:
+        def chat(self, s, u):
+            raise LLMError("no key")
+
+    assert attribute(Boom(), [_alert()], []) == {}

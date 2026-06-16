@@ -13,10 +13,17 @@ from .openai_compat import OpenAICompatClient
 
 # provider -> (env_key, base_url, kind)
 # kind: "anthropic" 用自有协议；"openai" 用 OpenAI 兼容协议。
+# Groq / Gemini 有免费额度，且都提供 OpenAI 兼容端点 —— 白嫖首选，复用同一个客户端。
 _PROVIDERS: dict[str, tuple[str, str | None, str]] = {
     "anthropic": ("ANTHROPIC_API_KEY", None, "anthropic"),
     "openai": ("OPENAI_API_KEY", "https://api.openai.com/v1", "openai"),
     "deepseek": ("DEEPSEEK_API_KEY", "https://api.deepseek.com/v1", "openai"),
+    "groq": ("GROQ_API_KEY", "https://api.groq.com/openai/v1", "openai"),
+    "gemini": (
+        "GEMINI_API_KEY",
+        "https://generativelanguage.googleapis.com/v1beta/openai",
+        "openai",
+    ),
     "dashscope": (
         "DASHSCOPE_API_KEY",
         "https://dashscope.aliyuncs.com/compatible-mode/v1",
