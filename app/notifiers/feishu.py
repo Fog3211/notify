@@ -28,7 +28,17 @@ class FeishuNotifier(Notifier):
         if not url:
             raise RuntimeError("缺少 FEISHU_WEBHOOK_URL")
 
-        payload: dict = {"msg_type": "interactive", "card": msg.feishu_card}
+        card = msg.feishu_card
+        # 飞书「自定义关键词」校验：消息必须含关键词，否则被拒收。注入到卡片标题最稳妥。
+        keyword = self.settings.notifiers.feishu.keyword
+        if keyword:
+            title = card.setdefault("header", {}).setdefault(
+                "title", {"tag": "plain_text", "content": ""}
+            )
+            if keyword not in title.get("content", ""):
+                title["content"] = f"{title.get('content', '')} · {keyword}".strip(" ·")
+
+        payload: dict = {"msg_type": "interactive", "card": card}
 
         # 开启签名校验的机器人需带 timestamp + sign
         secret = self.settings.env("FEISHU_WEBHOOK_SECRET")

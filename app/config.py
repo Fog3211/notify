@@ -62,6 +62,7 @@ class MarketCfg(BaseModel):
 class NotifierToggle(BaseModel):
     enabled: bool = False
     template: str | None = None
+    keyword: str | None = None       # 飞书自定义关键词校验：消息须含该词，notifier 会自动注入
 
 
 class NotifiersCfg(BaseModel):

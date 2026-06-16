@@ -13,8 +13,8 @@ schedule:
 # provider 取值: groq | gemini | deepseek | anthropic | openai | dashscope
 # 白嫖推荐: groq（免费、快）或 gemini（免费）；要质量好且便宜用 deepseek。
 llm:
-  provider: "groq"
-  model: "llama-3.3-70b-versatile"
+  provider: "deepseek"
+  model: "deepseek-chat"
   temperature: 0.3
   max_tokens: 4096
   # 各 provider 的 base_url / 对应 env key 在 app/llm/factory.py 注册；这里只选 provider/model。
@@ -103,8 +103,9 @@ processing:
 notifiers:
   feishu:
     enabled: true
+    keyword: "AI测试"     # 机器人若设了自定义关键词，填这里，notifier 会自动注入到消息
   pushplus:
-    enabled: true
+    enabled: false        # 暂无 token，先关掉
     # PushPlus 模板: html | markdown | txt
     template: "markdown"
   serverchan:
