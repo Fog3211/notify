@@ -64,6 +64,7 @@ class CryptoCfg(BaseModel):
     source: str = "coingecko"        # coingecko（主）| binance（兜底）
     watchlist: list[str] = Field(default_factory=list)
     snapshot_db: str = "data/crypto.sqlite"
+    ai_attribution: bool = True      # 异动时关联币圈新闻做 AI 归因（需 LLM key，无则跳过）
     movers: MoversCfg = Field(default_factory=MoversCfg)
 
 

@@ -18,16 +18,20 @@ def detect(
     quotes: list[Quote],
     last_prices: dict[str, float],
     cfg: MoversCfg,
+    daily_label: str = "日内",
 ) -> list[MoverAlert]:
-    """对一批行情做异动判定，返回告警列表（未做冷却过滤）。"""
+    """对一批行情做异动判定，返回告警列表（未做冷却过滤）。
+
+    daily_label：日内口径的中文措辞；股票用「日内」，加密用「24h」（其涨跌幅是 24h 滚动）。
+    """
     alerts: list[MoverAlert] = []
     for q in quotes:
         triggered: list[tuple[str, float, str]] = []  # (window, change_pct, reason)
 
-        # 1) 日内涨跌幅（相对前收）
+        # 1) 日内/24h 涨跌幅（相对前收/24h 前）
         daily = q.change_pct
         if daily is not None and abs(daily) >= cfg.daily_threshold_pct:
-            triggered.append(("daily", daily, f"日内{_fmt_pct(daily)}"))
+            triggered.append(("daily", daily, f"{daily_label}{_fmt_pct(daily)}"))
 
         # 2) 小时涨跌幅（相对上一次快照）
         last = last_prices.get(q.symbol)

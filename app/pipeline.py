@@ -31,9 +31,11 @@ from .notifiers.render import build_daily_message, build_events_message, build_m
 log = logging.getLogger("pipeline")
 
 
-def _collect_all(settings: Settings) -> list[NewsItem]:
-    """并发拉取所有数据源。单源失败已在 Collector.collect 内吞掉。"""
+def _collect_all(settings: Settings, topics: set[str] | None = None) -> list[NewsItem]:
+    """并发拉取数据源（topics 给定时只拉这些主题，用于按需归因）。单源失败已吞掉。"""
     collectors = build_collectors(settings)
+    if topics is not None:
+        collectors = [c for c in collectors if c.source.topic in topics]
     if not collectors:
         log.warning("没有可用数据源")
         return []
@@ -140,7 +142,8 @@ def run_crypto(settings: Settings, *, dry_run: bool = False) -> list[MoverAlert]
         if not quotes:
             return []
 
-        alerts = detect(quotes, last_prices, settings.crypto.movers)
+        # 币圈涨跌幅是 24h 滚动口径，措辞用「24h」而非「日内」
+        alerts = detect(quotes, last_prices, settings.crypto.movers, daily_label="24h")
         if not dry_run:
             store.save_prices(quotes)
 
@@ -149,6 +152,10 @@ def run_crypto(settings: Settings, *, dry_run: bool = False) -> list[MoverAlert]
         log.info("币圈检测到 %d 条异动，冷却过滤后 %d 条待推送", len(alerts), len(fresh))
         if not fresh:
             return []
+
+        # 关联币圈新闻做 AI 归因（无 LLM key 则跳过）
+        if settings.crypto.ai_attribution:
+            _attribute(settings, fresh, topics={"crypto"})
 
         msg = build_movers_message(fresh, title=_CRYPTO_TITLE)
         if dry_run:
@@ -205,19 +212,21 @@ def run_events(settings: Settings, *, dry_run: bool = False) -> list[NewsItem]:
         store.close()
 
 
-def _attribute_movers(settings: Settings, alerts: list[MoverAlert]) -> None:
-    """为异动个股做 AI 归因（原地改写 reason）。LLM 不可用时静默跳过。"""
+def _attribute(settings: Settings, alerts: list[MoverAlert], topics: set[str] | None = None) -> None:
+    """为异动标的做 AI 归因（原地改写 reason）。LLM 不可用时静默跳过。
+
+    topics 限定关联新闻的范围（股票用全部，币圈只用币圈新闻），只在确有异动时才采集。
+    """
     try:
         llm = build_llm(settings)
     except LLMError as exc:
         log.info("未配置可用 LLM，跳过异动归因（%s）", exc)
         return
-    # 复用每日新闻采集，关联到异动个股；只在确有异动时才付出这次采集成本
-    news = _filter_recent(_collect_all(settings), settings.processing.lookback_hours)
+    news = _filter_recent(_collect_all(settings, topics), settings.processing.lookback_hours)
     reasons = attribute(llm, alerts, news)
     apply_attribution(alerts, reasons)
     if reasons:
-        log.info("已为 %d 只异动生成 AI 归因", len(reasons))
+        log.info("已为 %d 个异动标的生成 AI 归因", len(reasons))
 
 
 def run_movers(
@@ -256,7 +265,7 @@ def run_movers(
 
         # 可选：关联近期新闻，给每只异动个股一句话 AI 归因（无 LLM key 则自动跳过）
         if settings.market.ai_attribution:
-            _attribute_movers(settings, fresh)
+            _attribute(settings, fresh)
 
         msg = build_movers_message(fresh)
         if dry_run:

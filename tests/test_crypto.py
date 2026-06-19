@@ -31,6 +31,13 @@ def test_crypto_uses_higher_threshold():
     assert len(alerts) == 1 and alerts[0].symbol == "SOL"
 
 
+def test_crypto_daily_label_is_24h():
+    cfg = MoversCfg(daily_threshold_pct=10.0, hourly_threshold_pct=99, volume_multiple=99)
+    pump = Quote(symbol="SOL", price=112.0, prev_close=_prev_from_pct(112.0, 12.0))
+    alert = detect([pump], {}, cfg, daily_label="24h")[0]
+    assert "24h" in alert.reason and "日内" not in alert.reason
+
+
 def test_movers_message_custom_title():
     alerts = [MoverAlert(symbol="BTC", window="daily", change_pct=12.0, price=70000.0, reason="24h涨 12%")]
     msg = build_movers_message(alerts, title="🪙 币圈异动速报")

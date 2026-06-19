@@ -2,16 +2,35 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.analyzer import _extract_json
 from app.dedup import SeenStore
 from app.models import NewsItem, Report, TopicAnalysis
 from app.notifiers.render import build_events_message, render_feishu_card, render_markdown
+from app.pipeline import _filter_recent, _group_and_cap
 
 
 def _item(url: str, topic: str = "ai") -> NewsItem:
     return NewsItem(source="s", topic=topic, title="t", url=url)
+
+
+def _dated(hours_ago: float, topic: str = "ai") -> NewsItem:
+    pub = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+    return NewsItem(source="s", topic=topic, title="t", url=f"http://x/{topic}/{hours_ago}", published_at=pub)
+
+
+def test_filter_recent_drops_old_keeps_undated():
+    kept = _filter_recent([_dated(1), _dated(50), _item("http://x/none")], 30)
+    urls = {i.url for i in kept}
+    assert "http://x/ai/1" in urls and "http://x/none" in urls and "http://x/ai/50" not in urls
+
+
+def test_group_and_cap_caps_and_sorts_newest_first():
+    items = [_dated(3, "ai"), _dated(1, "ai"), _dated(2, "ai"), _dated(1, "finance")]
+    grouped = _group_and_cap(items, 2)
+    assert len(grouped["ai"]) == 2 and len(grouped["finance"]) == 1
+    assert grouped["ai"][0].url == "http://x/ai/1"   # 最新在前
 
 
 def test_dedup_filters_seen_and_within_batch(tmp_path):

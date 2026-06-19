@@ -114,6 +114,7 @@ crypto:
   source: "coingecko"
   watchlist: ["BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA", "AVAX", "LINK", "TRX"]
   snapshot_db: "data/crypto.sqlite"
+  ai_attribution: true          # 异动时关联币圈新闻做 AI 归因（无 LLM key 自动跳过）
   movers:
     daily_threshold_pct: 10.0   # 币圈波动大，24h 涨跌幅阈值设高些
     hourly_threshold_pct: 5.0

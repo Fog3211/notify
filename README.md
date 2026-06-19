@@ -28,15 +28,17 @@
 
 ```
 app/
-  collectors/   采集层：rss / finnhub + registry（按 key 可用性筛选）
-  llm/          LLM 抽象：anthropic_client / openai_compat + factory（按 provider 构造）
-  notifiers/    推送层：feishu / pushplus / serverchan + render（渲染卡片）
+  collectors/   采集层：rss / finnhub / sec(8-K) + registry（按 key 可用性筛选）
+  market/       行情/异动：provider(美股) / crypto(币圈) / movers / snapshot / hours / attribution / calendar
+  llm/          LLM 抽象：anthropic_client / openai_compat + factory（含 Groq/Gemini 免费档）
+  notifiers/    推送层：feishu / pushplus / serverchan + render + message + registry
   analyzer.py   构造 prompt、调用 LLM、解析结构化结论
+  brief.py      brief <ticker> 即时查询（行情+新闻+8-K+AI 点评）
   dedup.py      SQLite 已推送指纹存储
-  pipeline.py   编排：采集→去重→分析→推送
-  scheduler.py  daemon 模式定时器（APScheduler）
-  __main__.py   CLI 入口
-config.yaml     业务配置（数据源、标的、LLM、推送、调度）
+  pipeline.py   编排：run / run_movers / run_events / run_crypto（一次运行即幂等）
+  scheduler.py  daemon 定时器：每日简报 + 盘中速报 + 事件 + 币圈（APScheduler）
+  __main__.py   CLI 入口：run / movers / events / crypto / brief / quotes / collect / check / schedule
+config.yaml     业务配置（数据源、标的、币圈、LLM、推送、调度）
 .env            密钥（不入库，见 .env.example）
 ```
 
