@@ -32,19 +32,27 @@ def run_forever(settings: Settings) -> None:
         except Exception as exc:  # 守护循环不能被单次失败打断
             log.exception("每日管道异常：%s", exc)
 
-    # 盘中速报：每 N 分钟跑一次，run_movers 内部自带交易时段门控
     if settings.market.enabled:
-        @sched.scheduled_job(
-            IntervalTrigger(minutes=settings.schedule.intraday_every_minutes)
-        )
+        interval = settings.schedule.intraday_every_minutes
+
+        # 盘中速报：run_movers 内部自带交易时段门控
+        @sched.scheduled_job(IntervalTrigger(minutes=interval))
         def _intraday() -> None:
             try:
                 pipeline.run_movers(settings)
             except Exception as exc:
                 log.exception("盘中速报异常：%s", exc)
 
+        # 重大事件速报：8-K 盘后也会申报，故不门控交易时段
+        @sched.scheduled_job(IntervalTrigger(minutes=interval))
+        def _events() -> None:
+            try:
+                pipeline.run_events(settings)
+            except Exception as exc:
+                log.exception("重大事件监控异常：%s", exc)
+
     log.info(
-        "调度器已启动：每天 %s 简报 + 每 %d 分钟盘中速报(%s)；Ctrl+C 退出",
+        "调度器已启动：每天 %s 简报 + 每 %d 分钟 盘中速报/重大事件(%s)；Ctrl+C 退出",
         settings.schedule.daily_at,
         settings.schedule.intraday_every_minutes,
         settings.schedule.timezone,

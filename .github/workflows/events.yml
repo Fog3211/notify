@@ -1,0 +1,32 @@
+# 重大事件速报：每小时查关注个股的新 8-K 申报，命中即推。
+# 不限交易时段（8-K 盘后也会申报）。无需 LLM；SEC 免 key（建议设 SEC_USER_AGENT）。
+name: events-8k
+
+on:
+  schedule:
+    - cron: "0 * * * *"   # 每小时整点
+  workflow_dispatch: {}
+
+env:
+  FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+  FEISHU_WEBHOOK_SECRET: ${{ secrets.FEISHU_WEBHOOK_SECRET }}
+  PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+  SERVERCHAN_SENDKEY: ${{ secrets.SERVERCHAN_SENDKEY }}
+  SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      # 与简报共用去重库（跨运行保留「已推事件」）
+      - uses: actions/cache@v4
+        with:
+          path: data
+          key: notify-state-${{ github.run_id }}
+          restore-keys: notify-state-
+      - run: python -m app events

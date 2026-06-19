@@ -98,6 +98,7 @@ class Report(BaseModel):
     generated_at: datetime
     analyses: list[TopicAnalysis] = Field(default_factory=list)
     overview: str = ""               # 跨主题的全局综述（可选）
+    calendar: list[str] = Field(default_factory=list)     # 近期财报安排（可选）
     stats: dict[str, int] = Field(default_factory=dict)   # topic -> 入选条数
 
     @property

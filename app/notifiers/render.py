@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timezone, timedelta
 
 from ..analyzer import TOPIC_LABELS
-from ..models import MoverAlert, Report
+from ..models import MoverAlert, NewsItem, Report
 from .message import Message
 
 # 情绪 -> emoji，让结论一眼可读
@@ -51,6 +51,10 @@ def render_markdown(report: Report, show_stats: bool = True) -> str:
         if a.tickers:
             parts.append(f"\n相关标的: `{'` `'.join(a.tickers)}`")
 
+    if report.calendar:
+        parts.append("\n## 📅 近期财报")
+        parts.extend(f"- {c}" for c in report.calendar)
+
     if show_stats and report.stats:
         total = sum(report.stats.values())
         detail = " | ".join(f"{k}:{v}" for k, v in report.stats.items())
@@ -81,6 +85,11 @@ def render_feishu_card(report: Report, show_stats: bool = True) -> dict:
         elements.append(
             {"tag": "div", "text": {"tag": "lark_md", "content": "\n".join(lines)}}
         )
+        elements.append({"tag": "hr"})
+
+    if report.calendar:
+        cal = "**📅 近期财报**\n" + "\n".join(f"• {c}" for c in report.calendar)
+        elements.append({"tag": "div", "text": {"tag": "lark_md", "content": cal}})
         elements.append({"tag": "hr"})
 
     footer = _fmt_time(report) + " (北京时间)"
@@ -157,4 +166,46 @@ def build_movers_message(alerts: list[MoverAlert]) -> Message:
         title=_MOVER_TITLE,
         markdown=render_movers_markdown(alerts),
         feishu_card=render_movers_feishu_card(alerts),
+    )
+
+
+# ---------------- 重大事件速报（SEC 8-K）----------------
+
+_EVENTS_TITLE = "⚡ 美股重大事件 (SEC 8-K)"
+
+
+def _event_time(n: NewsItem) -> str:
+    return n.published_at.astimezone(_CST).strftime("%m-%d %H:%M") if n.published_at else ""
+
+
+def render_events_markdown(items: list[NewsItem]) -> str:
+    parts = [f"# {_EVENTS_TITLE}", f"*{_now_cst()} (北京时间)*", ""]
+    parts.extend(f"⚡ [{n.title}]({n.url}) {_event_time(n)}" for n in items)
+    parts.append("\n---\n_8-K 为公司向 SEC 申报的重大事件；仅信息提醒，非投资建议_")
+    return "\n".join(parts)
+
+
+def render_events_feishu_card(items: list[NewsItem]) -> dict:
+    body = "\n".join(f"⚡ [{n.title}]({n.url}) {_event_time(n)}" for n in items)
+    elements = [
+        {"tag": "div", "text": {"tag": "lark_md", "content": body}},
+        {
+            "tag": "note",
+            "elements": [
+                {"tag": "plain_text", "content": f"{_now_cst()} 北京时间 · {len(items)} 起 · 非投资建议"}
+            ],
+        },
+    ]
+    return {
+        "config": {"wide_screen_mode": True},
+        "header": {"title": {"tag": "plain_text", "content": _EVENTS_TITLE}, "template": "orange"},
+        "elements": elements,
+    }
+
+
+def build_events_message(items: list[NewsItem]) -> Message:
+    return Message(
+        title=_EVENTS_TITLE,
+        markdown=render_events_markdown(items),
+        feishu_card=render_events_feishu_card(items),
     )

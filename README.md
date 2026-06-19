@@ -56,7 +56,8 @@ python -m app run --dry-run         # 每日简报跑一遍但不推送、不写
 python -m app run                   # 每日简报正式跑：采集→AI 分析→推送
 python -m app movers --dry-run --force  # 盘中异动检测预览（不推送、绕过交易时段门控）
 python -m app movers                # 盘中异动速报：拉行情→检测→推送（仅交易时段）
-python -m app schedule              # 常驻：每日简报 + 盘中每小时速报
+python -m app events                # 重大事件速报：SEC 8-K 命中即推（--dry-run 预览）
+python -m app schedule              # 常驻：每日简报 + 盘中速报 + 重大事件
 ```
 
 > **异动速报无需 LLM**：暴涨暴跌检测是纯规则的，没有任何 API key 也能跑通推送。
@@ -98,6 +99,7 @@ llm:
 
 - [.github/workflows/daily.yml](.github/workflows/daily.yml) — 每日简报（北京时间 07:00 前后）
 - [.github/workflows/intraday.yml](.github/workflows/intraday.yml) — 盘中每小时异动速报（交易时段由代码门控）
+- [.github/workflows/events.yml](.github/workflows/events.yml) — 每小时 SEC 8-K 重大事件速报（不限时段）
 
 用法：fork / push 到 GitHub → 仓库 **Settings → Secrets and variables → Actions** 里填密钥
 （`FEISHU_WEBHOOK_URL`、`PUSHPLUS_TOKEN`、`ANTHROPIC_API_KEY` 等，按需）→ 工作流自动按 cron 跑。

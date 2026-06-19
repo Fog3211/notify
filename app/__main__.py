@@ -68,6 +68,15 @@ def _cmd_brief(settings, args) -> int:
     return 0
 
 
+def _cmd_events(settings, args) -> int:
+    items = pipeline.run_events(settings, dry_run=args.dry_run)
+    for n in items:
+        print(f"  ⚡ {n.title}")
+    if not items:
+        print("  （无新 8-K 事件 / 已推送过）")
+    return 0
+
+
 def _cmd_movers(settings, args) -> int:
     alerts = pipeline.run_movers(settings, dry_run=args.dry_run, force=args.force)
     for a in alerts:
@@ -131,6 +140,10 @@ def main(argv: list[str] | None = None) -> int:
     p_movers.add_argument("--dry-run", action="store_true", help="不推送、不写快照/冷却")
     p_movers.add_argument("--force", action="store_true", help="绕过美股交易时段门控")
     p_movers.set_defaults(func=_cmd_movers)
+
+    p_events = sub.add_parser("events", help="重大事件速报：8-K 命中即推")
+    p_events.add_argument("--dry-run", action="store_true", help="不推送、不写去重库")
+    p_events.set_defaults(func=_cmd_events)
 
     p_brief = sub.add_parser("brief", help="即时查询单只美股：行情+新闻+8-K+AI 点评")
     p_brief.add_argument("ticker", help="股票代码，如 NVDA")

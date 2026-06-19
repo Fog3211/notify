@@ -11,19 +11,21 @@ from concurrent.futures import ThreadPoolExecutor
 
 from .analyzer import safe_analyze
 from .collectors.registry import build_collectors
+from .collectors.sec import recent_8k
 from .config import Settings
 from .dedup import SeenStore
 from .http import make_client
 from .llm.base import LLMError
 from .llm.factory import build_llm
 from .market.attribution import apply as apply_attribution, attribute
+from .market.calendar import upcoming_earnings
 from .market.hours import is_us_market_open
 from .market.movers import detect
 from .market.provider import fetch_quotes
 from .market.snapshot import SnapshotStore
 from .models import MoverAlert, NewsItem, Report
 from .notifiers.registry import build_notifiers
-from .notifiers.render import build_daily_message, build_movers_message
+from .notifiers.render import build_daily_message, build_events_message, build_movers_message
 
 log = logging.getLogger("pipeline")
 
@@ -93,6 +95,11 @@ def run(settings: Settings, *, dry_run: bool = False) -> Report | None:
             log.warning("分析无产出，跳过推送（本批不标记已读，下次重试）")
             return None
 
+        # 附上近期财报安排（免费 Finnhub；无 key 则为空，不影响简报）
+        if settings.market.enabled:
+            with make_client() as client:
+                report.calendar = upcoming_earnings(client, settings, days=7)
+
         msg = build_daily_message(report, settings.report.show_stats)
         if dry_run:
             log.info("[dry-run] 报告如下，不推送、不写去重库：\n%s", msg.markdown)
@@ -108,6 +115,45 @@ def run(settings: Settings, *, dry_run: bool = False) -> Report | None:
         else:
             log.warning("所有渠道推送失败，本批不标记已读")
         return report
+    finally:
+        store.close()
+
+
+def run_events(settings: Settings, *, dry_run: bool = False) -> list[NewsItem]:
+    """重大事件速报：拉关注个股的最新 8-K -> 去重 -> 命中即推。返回本次推送的事件。
+
+    与每日简报共用去重库：经速报推过的 8-K 不会再在简报里重复出现，反之亦然。
+    不受交易时段限制（8-K 盘后也会申报）。
+    """
+    if not settings.market.enabled:
+        log.info("未启用 market，跳过重大事件监控")
+        return []
+
+    store = SeenStore(settings.dedup_db_path())
+    try:
+        with make_client() as client:
+            try:
+                events = recent_8k(client, settings, settings.all_tickers(), days=2)
+            except Exception as exc:   # SEC 故障不应让调度循环崩溃
+                log.warning("SEC 8-K 拉取失败：%s", exc)
+                return []
+        fresh = store.filter_new(events)
+        log.info("8-K 事件 %d 起，去重后 %d 起为新", len(events), len(fresh))
+        if not fresh:
+            return []
+
+        msg = build_events_message(fresh)
+        if dry_run:
+            log.info("[dry-run] 重大事件速报如下，不推送、不写去重库：\n%s", msg.markdown)
+            return fresh
+
+        notifiers = build_notifiers(settings)
+        results = [n.send(msg) for n in notifiers]
+        if not notifiers or any(results):
+            store.mark_seen(fresh)
+        else:
+            log.warning("所有渠道推送失败，本批不标记已读")
+        return fresh
     finally:
         store.close()
 

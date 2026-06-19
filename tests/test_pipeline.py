@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from app.analyzer import _extract_json
 from app.dedup import SeenStore
 from app.models import NewsItem, Report, TopicAnalysis
-from app.notifiers.render import render_feishu_card, render_markdown
+from app.notifiers.render import build_events_message, render_feishu_card, render_markdown
 
 
 def _item(url: str, topic: str = "ai") -> NewsItem:
@@ -77,3 +77,19 @@ def test_render_feishu_card_structure():
     card = render_feishu_card(_sample_report())
     assert card["header"]["title"]["content"] == "测试简报"
     assert any(e.get("tag") == "div" for e in card["elements"])
+
+
+def test_calendar_section_in_markdown():
+    r = _sample_report()
+    r.calendar = ["NVDA 2026-06-25 盘后"]
+    md = render_markdown(r)
+    assert "近期财报" in md and "NVDA 2026-06-25" in md
+
+
+def test_events_message():
+    items = [_item("http://x/8k")]
+    items[0].title = "NVDA 8-K · 业绩/财务结果"
+    items[0].topic = "events"
+    msg = build_events_message(items)
+    assert "重大事件" in msg.title
+    assert "NVDA 8-K" in msg.markdown and "http://x/8k" in msg.markdown
