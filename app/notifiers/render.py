@@ -126,14 +126,14 @@ def _mover_line(a: MoverAlert) -> str:
     return f"{arrow} **{a.symbol}** {a.change_pct:+.1f}% @ {a.price:g} — {a.reason}"
 
 
-def render_movers_markdown(alerts: list[MoverAlert]) -> str:
-    parts = [f"# {_MOVER_TITLE}", f"*{_now_cst()} (北京时间)*", ""]
+def render_movers_markdown(alerts: list[MoverAlert], title: str = _MOVER_TITLE) -> str:
+    parts = [f"# {title}", f"*{_now_cst()} (北京时间)*", ""]
     parts.extend(_mover_line(a) for a in alerts)
     parts.append("\n---\n_仅信息提醒，非投资建议；免费行情约 15 分钟延迟_")
     return "\n".join(parts)
 
 
-def render_movers_feishu_card(alerts: list[MoverAlert]) -> dict:
+def render_movers_feishu_card(alerts: list[MoverAlert], title: str = _MOVER_TITLE) -> dict:
     up = sum(1 for a in alerts if a.change_pct >= 0)
     elements: list[dict] = [
         {
@@ -153,19 +153,19 @@ def render_movers_feishu_card(alerts: list[MoverAlert]) -> dict:
     return {
         "config": {"wide_screen_mode": True},
         "header": {
-            "title": {"tag": "plain_text", "content": _MOVER_TITLE},
+            "title": {"tag": "plain_text", "content": title},
             "template": "red",
         },
         "elements": elements,
     }
 
 
-def build_movers_message(alerts: list[MoverAlert]) -> Message:
-    """异动告警列表 -> Message。"""
+def build_movers_message(alerts: list[MoverAlert], title: str = _MOVER_TITLE) -> Message:
+    """异动告警列表 -> Message。title 可换成币圈等其他场景的标题。"""
     return Message(
-        title=_MOVER_TITLE,
-        markdown=render_movers_markdown(alerts),
-        feishu_card=render_movers_feishu_card(alerts),
+        title=title,
+        markdown=render_movers_markdown(alerts, title),
+        feishu_card=render_movers_feishu_card(alerts, title),
     )
 
 

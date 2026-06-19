@@ -57,7 +57,8 @@ python -m app run                   # 每日简报正式跑：采集→AI 分析
 python -m app movers --dry-run --force  # 盘中异动检测预览（不推送、绕过交易时段门控）
 python -m app movers                # 盘中异动速报：拉行情→检测→推送（仅交易时段）
 python -m app events                # 重大事件速报：SEC 8-K 命中即推（--dry-run 预览）
-python -m app schedule              # 常驻：每日简报 + 盘中速报 + 重大事件
+python -m app crypto                # 币圈暴涨暴跌速报：主流币行情→检测→推送（24/7）
+python -m app schedule              # 常驻：每日简报 + 盘中速报 + 重大事件 + 币圈
 ```
 
 > **异动速报无需 LLM**：暴涨暴跌检测是纯规则的，没有任何 API key 也能跑通推送。

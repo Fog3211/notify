@@ -30,6 +30,7 @@ TOPIC_LABELS = {
     "us_tech": "美股科技",
     "finance": "宏观财经",
     "semiconductor": "半导体 / 存储 / CPO",
+    "crypto": "🪙 加密货币",
 }
 
 

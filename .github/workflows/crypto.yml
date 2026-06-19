@@ -1,0 +1,31 @@
+# 币圈暴涨暴跌速报：每小时查主流币行情，命中阈值即推。24/7（加密不休市）。
+# 无需 LLM；行情源 CoinGecko/Binance 免 key。
+name: crypto-movers
+
+on:
+  schedule:
+    - cron: "0 * * * *"   # 每小时整点
+  workflow_dispatch: {}
+
+env:
+  FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+  FEISHU_WEBHOOK_SECRET: ${{ secrets.FEISHU_WEBHOOK_SECRET }}
+  PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+  SERVERCHAN_SENDKEY: ${{ secrets.SERVERCHAN_SENDKEY }}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      # 持久化币圈快照 + 冷却（小时级对比与去重需要跨运行状态）
+      - uses: actions/cache@v4
+        with:
+          path: data
+          key: notify-state-${{ github.run_id }}
+          restore-keys: notify-state-
+      - run: python -m app crypto

@@ -22,6 +22,8 @@
 - ✅ 多频率：每日简报 + 盘中每小时速报（交易时段门控）；GitHub Actions 两个 cron 工作流。
 - ✅ 实时事件源：Finnhub（市场/公司新闻、免费 key）+ SEC EDGAR 8-K 重大事件（免 key，
   ticker→CIK，条目代码中文化，topic=events）；`brief <ticker>` 即时查询（行情+新闻+8-K+AI 点评）。
+- ✅ 币圈：主流币新闻（CoinDesk/Cointelegraph/Decrypt RSS）+ 暴涨暴跌速报（CoinGecko 主 / Binance
+  兜底，免 key，24/7）；复用股票的异动检测/快照/冷却/渲染，仅换行情源与阈值。
 - 🚧 规划中：RSSHub 中文财经源、Finnhub 经济/财报日历入简报、更多推送渠道（企业微信 / Bark / ntfy）、
   8-K 命中即单独推。详见 SPEC 的状态标记与 PLAN 的路线图。**A 股不做。**
 

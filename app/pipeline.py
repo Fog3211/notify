@@ -19,6 +19,7 @@ from .llm.base import LLMError
 from .llm.factory import build_llm
 from .market.attribution import apply as apply_attribution, attribute
 from .market.calendar import upcoming_earnings
+from .market.crypto import fetch_crypto_quotes
 from .market.hours import is_us_market_open
 from .market.movers import detect
 from .market.provider import fetch_quotes
@@ -115,6 +116,52 @@ def run(settings: Settings, *, dry_run: bool = False) -> Report | None:
         else:
             log.warning("所有渠道推送失败，本批不标记已读")
         return report
+    finally:
+        store.close()
+
+
+_CRYPTO_TITLE = "🪙 币圈异动速报"
+
+
+def run_crypto(settings: Settings, *, dry_run: bool = False) -> list[MoverAlert]:
+    """币圈暴涨暴跌速报：拉主流币行情 -> 检测异动 -> 冷却过滤 -> 推送。
+
+    复用股票的异动检测/快照/冷却/渲染，仅换行情源、阈值与快照库。币圈 24/7，无时段门控。
+    """
+    if not settings.crypto.enabled:
+        log.info("未启用 crypto，跳过币圈监控")
+        return []
+
+    store = SnapshotStore(settings.crypto_snapshot_db_path())
+    try:
+        last_prices = store.last_prices()
+        with make_client() as client:
+            quotes = fetch_crypto_quotes(settings, settings.crypto.watchlist, client)
+        if not quotes:
+            return []
+
+        alerts = detect(quotes, last_prices, settings.crypto.movers)
+        if not dry_run:
+            store.save_prices(quotes)
+
+        cooldown_h = settings.crypto.movers.cooldown_hours
+        fresh = [a for a in alerts if not store.in_cooldown(a.cooldown_key, cooldown_h)]
+        log.info("币圈检测到 %d 条异动，冷却过滤后 %d 条待推送", len(alerts), len(fresh))
+        if not fresh:
+            return []
+
+        msg = build_movers_message(fresh, title=_CRYPTO_TITLE)
+        if dry_run:
+            log.info("[dry-run] 币圈异动速报如下，不推送、不写状态：\n%s", msg.markdown)
+            return fresh
+
+        notifiers = build_notifiers(settings)
+        results = [n.send(msg) for n in notifiers]
+        if not notifiers or any(results):
+            store.mark_alerted([a.cooldown_key for a in fresh])
+        else:
+            log.warning("所有渠道推送失败，本批不标记冷却")
+        return fresh
     finally:
         store.close()
 

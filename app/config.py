@@ -59,6 +59,14 @@ class MarketCfg(BaseModel):
     movers: MoversCfg = Field(default_factory=MoversCfg)
 
 
+class CryptoCfg(BaseModel):
+    enabled: bool = False
+    source: str = "coingecko"        # coingecko（主）| binance（兜底）
+    watchlist: list[str] = Field(default_factory=list)
+    snapshot_db: str = "data/crypto.sqlite"
+    movers: MoversCfg = Field(default_factory=MoversCfg)
+
+
 class NotifierToggle(BaseModel):
     enabled: bool = False
     template: str | None = None
@@ -82,6 +90,7 @@ class Settings(BaseModel):
     sources: list[SourceCfg] = Field(default_factory=list)
     watchlist: dict[str, list[str]] = Field(default_factory=dict)
     market: MarketCfg = Field(default_factory=MarketCfg)
+    crypto: CryptoCfg = Field(default_factory=CryptoCfg)
     processing: ProcessingCfg = Field(default_factory=ProcessingCfg)
     notifiers: NotifiersCfg = Field(default_factory=NotifiersCfg)
     report: ReportCfg = Field(default_factory=ReportCfg)
@@ -97,6 +106,10 @@ class Settings(BaseModel):
 
     def snapshot_db_path(self) -> Path:
         p = Path(self.market.snapshot_db)
+        return p if p.is_absolute() else PROJECT_ROOT / p
+
+    def crypto_snapshot_db_path(self) -> Path:
+        p = Path(self.crypto.snapshot_db)
         return p if p.is_absolute() else PROJECT_ROOT / p
 
     def all_tickers(self) -> list[str]:

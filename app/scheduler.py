@@ -51,6 +51,17 @@ def run_forever(settings: Settings) -> None:
             except Exception as exc:
                 log.exception("重大事件监控异常：%s", exc)
 
+    # 币圈速报：24/7，无时段门控
+    if settings.crypto.enabled:
+        @sched.scheduled_job(
+            IntervalTrigger(minutes=settings.schedule.intraday_every_minutes)
+        )
+        def _crypto() -> None:
+            try:
+                pipeline.run_crypto(settings)
+            except Exception as exc:
+                log.exception("币圈监控异常：%s", exc)
+
     log.info(
         "调度器已启动：每天 %s 简报 + 每 %d 分钟 盘中速报/重大事件(%s)；Ctrl+C 退出",
         settings.schedule.daily_at,

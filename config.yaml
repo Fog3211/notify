@@ -71,6 +71,20 @@ sources:
     type: sec_8k
     topic: events
 
+  # ---------- 币圈新闻（免 key RSS）----------
+  - name: "CoinDesk"
+    type: rss
+    topic: crypto
+    url: "https://www.coindesk.com/arc/outboundfeeds/rss/"
+  - name: "Cointelegraph"
+    type: rss
+    topic: crypto
+    url: "https://cointelegraph.com/rss"
+  - name: "Decrypt"
+    type: rss
+    topic: crypto
+    url: "https://decrypt.co/feed"
+
 # 关注标的（仅美股）：用于行情/异动监控，并作为给 AI 的上下文。
 watchlist:
   tech:   ["NVDA", "MSFT", "GOOGL", "META", "AMZN", "AAPL", "TSLA", "PLTR", "ARM"]
@@ -92,6 +106,19 @@ market:
     hourly_threshold_pct: 3.0   # |相邻快照涨跌幅| ≥ 该值触发异动
     volume_multiple: 3.0        # 成交量 ≥ 历史均量×该倍数触发（无均量数据时跳过此项）
     cooldown_hours: 4           # 同标的同方向冷却期内不重复推送
+
+# 币圈行情与暴涨暴跌监控（仅主流币，免 key，24/7 运行）
+crypto:
+  enabled: true
+  # 主源 coingecko（全球可用）；失败自动切 binance 兜底。均免 key。
+  source: "coingecko"
+  watchlist: ["BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA", "AVAX", "LINK", "TRX"]
+  snapshot_db: "data/crypto.sqlite"
+  movers:
+    daily_threshold_pct: 10.0   # 币圈波动大，24h 涨跌幅阈值设高些
+    hourly_threshold_pct: 5.0
+    volume_multiple: 3.0
+    cooldown_hours: 4
 
 # 去重 & 过滤
 processing:

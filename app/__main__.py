@@ -68,6 +68,16 @@ def _cmd_brief(settings, args) -> int:
     return 0
 
 
+def _cmd_crypto(settings, args) -> int:
+    alerts = pipeline.run_crypto(settings, dry_run=args.dry_run)
+    for a in alerts:
+        arrow = "📈" if a.change_pct >= 0 else "📉"
+        print(f"  {arrow} {a.symbol:<6} [{a.window}] {a.change_pct:+.1f}%  {a.reason}")
+    if not alerts:
+        print("  （无异动 / 已被冷却）")
+    return 0
+
+
 def _cmd_events(settings, args) -> int:
     items = pipeline.run_events(settings, dry_run=args.dry_run)
     for n in items:
@@ -117,6 +127,12 @@ def _cmd_check(settings, args) -> int:
     else:
         print("  ✗ 未启用 (market.enabled=false)")
 
+    print("\n== 币圈监控 ==")
+    if settings.crypto.enabled:
+        print(f"  ✓ 已启用，源={settings.crypto.source}，关注 {len(settings.crypto.watchlist)} 个主流币")
+    else:
+        print("  ✗ 未启用 (crypto.enabled=false)")
+
     print("\n== 推送渠道 ==")
     notifiers = build_notifiers(settings)
     for n in notifiers:
@@ -144,6 +160,10 @@ def main(argv: list[str] | None = None) -> int:
     p_events = sub.add_parser("events", help="重大事件速报：8-K 命中即推")
     p_events.add_argument("--dry-run", action="store_true", help="不推送、不写去重库")
     p_events.set_defaults(func=_cmd_events)
+
+    p_crypto = sub.add_parser("crypto", help="币圈暴涨暴跌速报：拉行情->检测->推送")
+    p_crypto.add_argument("--dry-run", action="store_true", help="不推送、不写快照/冷却")
+    p_crypto.set_defaults(func=_cmd_crypto)
 
     p_brief = sub.add_parser("brief", help="即时查询单只美股：行情+新闻+8-K+AI 点评")
     p_brief.add_argument("ticker", help="股票代码，如 NVDA")
