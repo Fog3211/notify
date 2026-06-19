@@ -66,6 +66,11 @@ sources:
     topic: us_tech
     category: "technology"   # finnhub general/forex/crypto/merger 等
 
+  # ---------- 重大事件：SEC 8-K（免 key，关注列表个股的 8-K 申报）----------
+  - name: "SEC 8-K Filings"
+    type: sec_8k
+    topic: events
+
 # 关注标的（仅美股）：用于行情/异动监控，并作为给 AI 的上下文。
 watchlist:
   tech:   ["NVDA", "MSFT", "GOOGL", "META", "AMZN", "AAPL", "TSLA", "PLTR", "ARM"]

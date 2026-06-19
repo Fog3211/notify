@@ -12,6 +12,7 @@ from ..config import Settings
 from .base import Collector
 from .finnhub import FinnhubNewsCollector
 from .rss import RSSCollector
+from .sec import SEC8KCollector
 
 log = logging.getLogger("collector")
 
@@ -19,6 +20,7 @@ log = logging.getLogger("collector")
 _TYPES: dict[str, tuple[type[Collector], str | None]] = {
     RSSCollector.type: (RSSCollector, None),
     FinnhubNewsCollector.type: (FinnhubNewsCollector, "FINNHUB_API_KEY"),
+    SEC8KCollector.type: (SEC8KCollector, None),
 }
 
 

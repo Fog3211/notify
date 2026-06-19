@@ -20,8 +20,10 @@
 - ✅ 行情/异动链路：美股行情采集（CNBC + Nasdaq 兜底，免 key）→ 暴涨暴跌异动检测
   （阈值 + 冷却去重）→ 异动速报渲染推送（纯规则可跑，配 LLM 时叠加关联新闻的一句话 AI 归因）。
 - ✅ 多频率：每日简报 + 盘中每小时速报（交易时段门控）；GitHub Actions 两个 cron 工作流。
-- 🚧 规划中：RSSHub / 新闻 API、Finnhub/AlphaVantage 行情增强、更多推送渠道（企业微信 / Bark / ntfy）。
-  详见 SPEC 的状态标记与 PLAN 的路线图。**A 股不做。**
+- ✅ 实时事件源：Finnhub（市场/公司新闻、免费 key）+ SEC EDGAR 8-K 重大事件（免 key，
+  ticker→CIK，条目代码中文化，topic=events）；`brief <ticker>` 即时查询（行情+新闻+8-K+AI 点评）。
+- 🚧 规划中：RSSHub 中文财经源、Finnhub 经济/财报日历入简报、更多推送渠道（企业微信 / Bark / ntfy）、
+  8-K 命中即单独推。详见 SPEC 的状态标记与 PLAN 的路线图。**A 股不做。**
 
 ## 架构与数据流
 
@@ -34,17 +36,19 @@
 
 ```
 app/
-  collectors/   采集层：base / rss / finnhub + registry（按 key 可用性筛选源）
+  collectors/   采集层：base / rss / finnhub / sec(8-K) + registry（按 key 可用性筛选源）
+  market/       行情/异动：provider(CNBC+Nasdaq) / movers / snapshot / hours / attribution
   llm/          LLM 抽象：base / anthropic_client / openai_compat + factory（按 provider 构造）
-  notifiers/    推送层：base / feishu / pushplus / serverchan + render + registry
+  notifiers/    推送层：base / feishu / pushplus / serverchan + render + message + registry
   analyzer.py   构造 prompt、调 LLM、解析结构化结论
+  brief.py      brief <ticker> 即时查询（行情+新闻+8-K+AI 点评）
   config.py     合并 config.yaml(业务) + .env(密钥) 成强类型 Settings
-  models.py     NewsItem / TopicAnalysis / Report
+  models.py     NewsItem / Quote / MoverAlert / TopicAnalysis / Report
   dedup.py      SQLite 去重指纹存储
   http.py       共享 httpx.Client（浏览器 UA，绕过部分站点 403/429）
-  pipeline.py   编排（一次运行即幂等）
-  scheduler.py  daemon 定时器（APScheduler）
-  __main__.py   CLI 入口
+  pipeline.py   编排：run(每日简报) / run_movers(盘中速报)，一次运行即幂等
+  scheduler.py  daemon 定时器（每日 + 盘中每小时，APScheduler）
+  __main__.py   CLI 入口：run / movers / brief / collect / quotes / check / schedule
 config.yaml     业务配置        .env(.example)  密钥
 tests/          离线单测（去重 / JSON 解析 / 渲染）
 ```
@@ -53,10 +57,13 @@ tests/          离线单测（去重 / JSON 解析 / 渲染）
 
 ```bash
 source .venv/bin/activate
-python -m app check          # 自检：数据源 / LLM / 渠道
-python -m app collect        # 只采集并打印各源条数
-python -m app run --dry-run  # 跑一遍不推送、不写去重库
-python -m app run            # 正式跑一次
+python -m app check          # 自检：数据源 / LLM / 行情 / 渠道
+python -m app collect        # 只采集新闻并打印各源条数
+python -m app quotes         # 只拉美股行情并打印
+python -m app brief NVDA     # 即时查询单票：行情+新闻+8-K+AI 点评（--push 推送）
+python -m app run --dry-run  # 每日简报跑一遍不推送、不写去重库
+python -m app run            # 每日简报正式跑一次
+python -m app movers --force # 盘中异动速报（--force 绕过交易时段）
 python -m pytest -q          # 离线单测
 ```
 

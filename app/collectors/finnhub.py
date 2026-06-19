@@ -6,14 +6,54 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
+from ..config import Settings
 from ..models import NewsItem
 from .base import Collector
 
 _BASE = "https://finnhub.io/api/v1/news"
+_COMPANY = "https://finnhub.io/api/v1/company-news"
+
+
+def company_news(
+    client: httpx.Client, settings: Settings, symbol: str, days: int
+) -> list[NewsItem]:
+    """单只个股最近 days 天的新闻（brief 命令用）。无 key 时返回空。"""
+    api_key = settings.env("FINNHUB_API_KEY")
+    if not api_key:
+        return []
+    today = datetime.now(timezone.utc).date()
+    resp = client.get(
+        _COMPANY,
+        params={
+            "symbol": symbol.upper(),
+            "from": str(today - timedelta(days=days)),
+            "to": str(today),
+            "token": api_key,
+        },
+    )
+    resp.raise_for_status()
+    items: list[NewsItem] = []
+    for row in resp.json():
+        title = (row.get("headline") or "").strip()
+        url = (row.get("url") or "").strip()
+        if not title or not url:
+            continue
+        ts = row.get("datetime")
+        items.append(
+            NewsItem(
+                source=f"Finnhub:{symbol.upper()}",
+                topic="events",
+                title=title,
+                url=url,
+                summary=(row.get("summary") or "")[:600],
+                published_at=datetime.fromtimestamp(ts, tz=timezone.utc) if ts else None,
+            )
+        )
+    return items
 
 
 class FinnhubNewsCollector(Collector):

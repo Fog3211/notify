@@ -25,6 +25,7 @@ _SYSTEM = (
 
 # 主题中文名，用于提示与渲染
 TOPIC_LABELS = {
+    "events": "⚡ 重大事件",
     "ai": "AI / 大模型",
     "us_tech": "美股科技",
     "finance": "宏观财经",

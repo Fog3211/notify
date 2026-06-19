@@ -86,7 +86,8 @@
 |---|---|---|---|
 | 新闻 | 财经媒体 RSS（CNBC / Yahoo / MIT TR / VentureBeat / Tom's HW / SemiEngineering 等） | 否 | ✅ |
 | 新闻 | RSSHub 中转（雪球 / 新浪财经 / 华尔街见闻 / SEC 等） | 否（自建） | 🚧 |
-| 新闻 | Finnhub / NewsAPI / TianAPI | 是 | 🚧（Finnhub 框架已留） |
+| 新闻 | Finnhub 市场/公司新闻 | 是（免费 key） | ✅ |
+| 事件 | SEC EDGAR 8-K 重大事件 | 否 | ✅ |
 | 行情 | Yahoo chart 接口（美股，主） | 否 | ✅ |
 | 行情 | Stooq CSV（美股，兜底） | 否 | ✅ |
 | 行情 | Finnhub / Alpha Vantage（美股，可选增强） | 是 | 🚧 |

@@ -58,6 +58,16 @@ def _cmd_quotes(settings, args) -> int:
     return 0
 
 
+def _cmd_brief(settings, args) -> int:
+    from . import brief
+
+    msg = brief.run_brief(settings, args.ticker, push=args.push)
+    print(msg.markdown)
+    if args.push:
+        print("\n（已尝试推送到已启用渠道）")
+    return 0
+
+
 def _cmd_movers(settings, args) -> int:
     alerts = pipeline.run_movers(settings, dry_run=args.dry_run, force=args.force)
     for a in alerts:
@@ -121,6 +131,11 @@ def main(argv: list[str] | None = None) -> int:
     p_movers.add_argument("--dry-run", action="store_true", help="不推送、不写快照/冷却")
     p_movers.add_argument("--force", action="store_true", help="绕过美股交易时段门控")
     p_movers.set_defaults(func=_cmd_movers)
+
+    p_brief = sub.add_parser("brief", help="即时查询单只美股：行情+新闻+8-K+AI 点评")
+    p_brief.add_argument("ticker", help="股票代码，如 NVDA")
+    p_brief.add_argument("--push", action="store_true", help="同时推送到已启用渠道")
+    p_brief.set_defaults(func=_cmd_brief)
 
     sub.add_parser("collect", help="只采集新闻并打印条数").set_defaults(func=_cmd_collect)
     sub.add_parser("quotes", help="只拉行情并打印").set_defaults(func=_cmd_quotes)

@@ -50,6 +50,8 @@ cp .env.example .env          # 填入你启用的 LLM key 与推送渠道 key
 python -m app check                 # 自检：数据源 / LLM / 行情 / 推送渠道是否就绪
 python -m app collect               # 只采集新闻、打印各源条数（排查数据源）
 python -m app quotes                # 只拉美股行情、打印（排查行情源）
+python -m app brief NVDA            # 即时查询单只票：行情+新闻+8-K公告+AI 点评
+python -m app brief NVDA --push     # 同上并推送到飞书/微信
 python -m app run --dry-run         # 每日简报跑一遍但不推送、不写去重库
 python -m app run                   # 每日简报正式跑：采集→AI 分析→推送
 python -m app movers --dry-run --force  # 盘中异动检测预览（不推送、绕过交易时段门控）
