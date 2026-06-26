@@ -13,8 +13,8 @@ schedule:
 # provider 取值: groq | gemini | deepseek | anthropic | openai | dashscope
 # 白嫖推荐: groq（免费、快）或 gemini（免费）；要质量好且便宜用 deepseek。
 llm:
-  provider: "gemini"
-  model: "gemini-2.5-flash"
+  provider: "deepseek"
+  model: "deepseek-chat"
   temperature: 0.3
   max_tokens: 4096
   # 各 provider 的 base_url / 对应 env key 在 app/llm/factory.py 注册；这里只选 provider/model。
